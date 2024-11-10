@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>复杂页面示例</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+        }
+
+        button {
+            padding: 10px 15px;
+            margin-right: 10px;
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .counter-section {
+            margin-top: 30px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>复杂页面示例</h1>
+        <div class="input-group">
+            <label for="nameInput">输入你的名字:</label>
+            <input type="text" id="nameInput" placeholder="请输入名字">
+        </div>
+        <button id="greetButton">问候</button>
+        <div id="greetingDisplay"></div>
+
+        <div class="counter-section">
+            <h2>计数器</h2>
+            <button id="incrementButton">增加计数</button>
+            <button id="decrementButton">减少计数</button>
+            <div id="countDisplay">计数: 0</div>
+        </div>
+    </div>
+    <script>
+        document.getElementById('greetButton').addEventListener('click', () => {
+            const name = document.getElementById('nameInput').value;
+            const greetingDisplay = document.getElementById('greetingDisplay');
+            greetingDisplay.textContent = `你好, ${name}!`;
+        });
+
+        let count = 0;
+        const countDisplay = document.getElementById('countDisplay');
+
+        document.getElementById('incrementButton').addEventListener('click', () => {
+            count++;
+            countDisplay.textContent = `计数: ${count}`;
+        });
+
+        document.getElementById('decrementButton').addEventListener('click', () => {
+            count--;
+            countDisplay.textContent = `计数: ${count}`;
+        });
+    </script>
+</body>
+</html>

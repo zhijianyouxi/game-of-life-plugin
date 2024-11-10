@@ -1,0 +1,11 @@
+{
+	"id": "game-of-life-plugin",
+	"name": "Game of Life Plugin",
+	"version": "1.0.0",
+	"minAppVersion": "0.15.0",
+	"description": "游戏人生插件",
+	"author": "Q",
+	"authorUrl": "",
+	"fundingUrl": "",
+	"isDesktopOnly": false
+}
