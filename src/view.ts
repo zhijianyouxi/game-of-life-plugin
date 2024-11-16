@@ -3,8 +3,7 @@ import { TFile } from 'obsidian';
 import { v4 as uuidv4 } from 'uuid';
 import { moment } from 'obsidian';
 import { RewardHandler } from './reward-handler';
-
-export const VIEW_TYPE_EXAMPLE = 'example-view';
+export const VIEW_TYPE_EXAMPLE = 'game-of-life-view';
 
 export class ExampleView extends ItemView {
   private characterData: any = null;
@@ -12,14 +11,13 @@ export class ExampleView extends ItemView {
   private skills: Map<string, any> = new Map();
   private resources: Map<string, any> = new Map();
   private equipment: Map<string, any> = new Map();
-  private refreshInterval: number;
   private currentView: 'character' | 'daily' | 'weekly' | 'other' = 'character';
   private tasks: any[] = [];
   private rewardHandler: RewardHandler;
 
   constructor(leaf: WorkspaceLeaf) {
     super(leaf);
-    this.refreshInterval = this.app.plugins.getPlugin('game-of-life-plugin').settings.refreshInterval || 3;
+    console.log("视图构造函数被调用");
     this.rewardHandler = new RewardHandler(this.app);
   }
 
@@ -28,7 +26,7 @@ export class ExampleView extends ItemView {
   }
 
   getDisplayText() {
-    return 'Example view';
+    return '游戏人生';
   }
 
   async loadAllData() {
@@ -144,12 +142,17 @@ export class ExampleView extends ItemView {
   async scanTasks() {
     const files = await this.app.vault.getAllLoadedFiles();
     for (const file of files) {
-        if (file instanceof TFile && 
-            (file.path.startsWith('游戏/任务/周期任务/') || 
-             file.path.startsWith('游戏/任务/副本任务/'))) {
-            
+        if (file instanceof TFile) {
             const cache = this.app.metadataCache.getFileCache(file);
-            if (!cache?.frontmatter?.uuid) {
+            const frontmatter = cache?.frontmatter;
+            
+            // 检查是否有必要的标签
+            const tags = frontmatter?.tags || [];
+            const hasRequiredTags = Array.isArray(tags) 
+                ? tags.includes('游戏人生') && tags.includes('任务')
+                : false;
+            
+            if (hasRequiredTags && !frontmatter?.uuid) {
                 try {
                     await this.addUuidToTask(file);
                     console.log(`Added UUID to task: ${file.path}`);
@@ -163,18 +166,26 @@ export class ExampleView extends ItemView {
 
   async addUuidToTask(file: TFile) {
     const content = await this.app.vault.read(file);
-    const uuid = uuidv4();
+    const uuid = this.generateUUID();
     
     // 检查是否有 frontmatter
     if (content.startsWith('---')) {
-      // 在 frontmatter 中添加 uuid
-      const newContent = content.replace('---\n', `---\nuuid: "${uuid}"\n`);
-      await this.app.vault.modify(file, newContent);
+        // 在 frontmatter 的开头添加 uuid
+        const newContent = content.replace('---\n', `---\nuuid: ${uuid}\n`);
+        await this.app.vault.modify(file, newContent);
     } else {
-      // 如果没有 frontmatter，创建一个
-      const newContent = `---\nuuid: "${uuid}"\n---\n\n${content}`;
-      await this.app.vault.modify(file, newContent);
+        // 如果没有 frontmatter，创建一个
+        const newContent = `---\nuuid: ${uuid}\ntags:\n  - 游戏人生\n  - 任务\n---\n\n${content}`;
+        await this.app.vault.modify(file, newContent);
     }
+  }
+
+  private generateUUID(): string {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0;
+        const v = c == 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
   }
 
   async checkTaskCompletion(taskUuid: string): Promise<boolean> {
@@ -484,14 +495,32 @@ export class ExampleView extends ItemView {
     this.containerEl.appendChild(style);
   }
 
+  async onload() {
+    console.log("视图加载");
+    await super.onload();
+    console.log("加载游戏人生插件");
+
+    // 初始化插件数据
+    this.data = Object.assign({ completedTasks: {} }, await this.loadData());
+
+    // ... 其他代码
+  }
+
   async onOpen() {
+    console.log("视图打开");
     await this.loadAllData();
-    this.registerInterval(
-      window.setInterval(() => this.loadAllData(), this.refreshInterval * 1000)
-    );
     
-    // 只在视图打开时注册一次事件
-    this.registerEventHandlers();
+    // 启动任务刷新定时器
+    this.taskRefreshManager.startRefreshTimer();
+    
+    // 注册清理函数
+    this.register(() => {
+        this.taskRefreshManager.stopRefreshTimer();
+    });
+  }
+
+  async onClose() {
+    console.log("视图关闭");
   }
 
   async updateView() {
@@ -742,15 +771,6 @@ export class ExampleView extends ItemView {
     });
   }
 
-  async onClose() {
-    // 在视图关闭时移除所有事件监听
-    const container = this.containerEl;
-    container.off('click', '#cyclic-task-btn');
-    container.off('click', '.back-button');
-    container.off('click', '.task-type-button');
-    container.off('click', '.task-complete-btn');
-  }
-
   async markTaskComplete(uuid: string) {
     const files = await this.app.vault.getAllLoadedFiles();
     for (const file of files) {
@@ -834,45 +854,4 @@ export class ExampleView extends ItemView {
     }
   }
 
-  async checkTaskRefresh() {
-    const now = moment();
-    const files = await this.app.vault.getAllLoadedFiles();
-    
-    for (const file of files) {
-        if (file instanceof TFile && 
-            (file.path.startsWith('游戏/任务/周期任务/'))) {
-            const cache = this.app.metadataCache.getFileCache(file);
-            const taskData: TaskData = cache?.frontmatter;
-            
-            if (taskData?.下一次刷新时间) {
-                const nextRefresh = moment(taskData.下一次刷新时间);
-                
-                if (nextRefresh.isSameOrBefore(now)) {
-                    // 更新任务状态
-                    const content = await this.app.vault.read(file);
-                    let newContent = content
-                        .replace(/本次任务完成情况: 已完成/, '本次任务完成情况: 未完成')
-                        .replace(/本次刷新时间:.*(\r?\n|$)/, `本次刷新时间: ${now.format('YYYY-MM-DD HH:mm:ss')}\n`);
-                    
-                    // 计算下一次刷新时间
-                    const nextTime = await this.calculateNextRefreshTime(taskData);
-                    if (nextTime) {
-                        newContent = this.updateNextRefreshTime(newContent, nextTime);
-                    }
-                    
-                    await this.app.vault.modify(file, newContent);
-                }
-            }
-        }
-    }
-  }
-
-  async onload() {
-    // ... 其他代码 ...
-    
-    // 每分钟检查一次任务刷新
-    this.registerInterval(
-        window.setInterval(() => this.checkTaskRefresh(), 60 * 1000)
-    );
-  }
 }

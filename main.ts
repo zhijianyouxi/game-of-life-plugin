@@ -1,5 +1,5 @@
 import { Plugin, addIcon } from 'obsidian';
-import { ExampleView, VIEW_TYPE_EXAMPLE } from './view';
+import { ExampleView, VIEW_TYPE_EXAMPLE } from './src/view';
 import { GameOfLifeSettings, DEFAULT_SETTINGS, GameOfLifeSettingTab } from './settings';
 
 // 定义图标 SVG
@@ -21,37 +21,60 @@ interface GameOfLifeData {
 export default class GameOfLifePlugin extends Plugin {
     settings: GameOfLifeSettings;
     data: GameOfLifeData;
+    private view: ExampleView;
 
     async onload() {
+        console.log("加载游戏人生插件");
+        
+        // 初始化数据
+        this.data = Object.assign({ completedTasks: {} }, await this.loadData());
         await this.loadSettings();
-
-        // 添加自定义图标
-        addIcon('game-of-life', GAME_ICON);
-
-        // 添加左侧边栏图标
-        this.addRibbonIcon('game-of-life', '游戏人生', (evt: MouseEvent) => {
-            this.activateView();
-        });
-
+        
+        // 注册视图
         this.registerView(
             VIEW_TYPE_EXAMPLE,
-            (leaf) => new ExampleView(leaf)
+            (leaf) => {
+                console.log("创建视图实例");
+                this.view = new ExampleView(leaf);
+                return this.view;
+            }
         );
 
+        // 添加命令
         this.addCommand({
-            id: 'show-example-view',
-            name: '显示角色面板',
-            callback: () => {
-                this.activateView();
-            }
+            id: 'open-game-of-life',
+            name: '打开游戏人生',
+            callback: () => this.activateView()
         });
 
+        // 添加设置页
         this.addSettingTab(new GameOfLifeSettingTab(this.app, this));
+        
+        // 如果需要，自动打开视图
+        await this.activateView();
+    }
 
-        // 加载任务记录数据
-        this.data = Object.assign({}, { completedTasks: {} }, await this.loadData());
+    async activateView() {
+        console.log("激活视图");
+        const { workspace } = this.app;
+        
+        let leaf = workspace.getLeavesOfType(VIEW_TYPE_EXAMPLE)[0];
+        
+        if (!leaf) {
+            console.log("创建新的视图页面");
+            leaf = workspace.getRightLeaf(false);
+            await leaf.setViewState({
+                type: VIEW_TYPE_EXAMPLE,
+                active: true,
+            });
+        }
+        
+        console.log("显示视图");
+        workspace.revealLeaf(leaf);
+    }
 
-
+    async onunload() {
+        console.log("卸载游戏人生插件");
     }
 
     async loadSettings() {
@@ -62,22 +85,17 @@ export default class GameOfLifePlugin extends Plugin {
         await this.saveData(this.settings);
     }
 
-    async activateView() {
-        const { workspace } = this.app;
-        
-        let leaf = workspace.getLeavesOfType(VIEW_TYPE_EXAMPLE)[0];
-        if (!leaf) {
-            leaf = workspace.getRightLeaf(false);
-            await leaf.setViewState({
-                type: VIEW_TYPE_EXAMPLE,
-                active: true,
-            });
-        }
-        workspace.revealLeaf(leaf);
-    }
-
     async savePluginData() {
         await this.saveData(this.data);
     }
 
+    async openGameOfLife() {
+        const workspace = this.app.workspace;
+        const leaf = workspace.getRightLeaf(false);
+        await leaf.setViewState({
+            type: VIEW_TYPE_EXAMPLE,
+            active: true,
+        });
+        workspace.revealLeaf(leaf);
+    }
 }
