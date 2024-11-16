@@ -2,7 +2,7 @@ import { ItemView, WorkspaceLeaf } from 'obsidian';
 import { TFile } from 'obsidian';
 import { v4 as uuidv4 } from 'uuid';
 import { moment } from 'obsidian';
-import { RewardHandler } from './reward-handler';
+import { RewardHandler } from './src/reward-handler';
 export const VIEW_TYPE_EXAMPLE = 'game-of-life-view';
 
 export class ExampleView extends ItemView {

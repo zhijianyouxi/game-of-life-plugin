@@ -1,5 +1,5 @@
 import { App, PluginSettingTab, Setting } from 'obsidian';
-import GameOfLifePlugin from './main';
+import GameOfLifePlugin from '../main';
 
 export interface GameOfLifeSettings {
     refreshInterval: number;

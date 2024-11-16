@@ -1,6 +1,6 @@
 import { Plugin, addIcon } from 'obsidian';
 import { ExampleView, VIEW_TYPE_EXAMPLE } from './src/view';
-import { GameOfLifeSettings, DEFAULT_SETTINGS, GameOfLifeSettingTab } from './settings';
+import { GameOfLifeSettings, DEFAULT_SETTINGS, GameOfLifeSettingTab } from './src/settings';
 
 // 定义图标 SVG
 const GAME_ICON = `<svg viewBox="0 0 100 100" width="100" height="100">
