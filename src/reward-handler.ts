@@ -1,3 +1,6 @@
+import { App, TFile } from 'obsidian';
+import moment from 'moment';
+
 interface RewardRow {
     次数: string;
     项目: string;
@@ -55,16 +58,27 @@ export class RewardHandler {
 
     private async distributeRewards(rewards: RewardRow[], completionCount: number) {
         for (const reward of rewards) {
-            const frequency = parseInt(reward.次数.match(/\d+/)[0]);
-            
-            // 检查是否满足次数条件
-            if (completionCount % frequency === 0) {
+            // 处理"每次"的情况
+            if (reward.次数 === '每次') {
+                console.log(`奖励: ${reward.项目} ${reward.值}`);
                 await this.applyReward(reward.项目, reward.值);
+                continue;
+            }
+            
+            // 处理"每X次"的情况
+            const match = reward.次数.match(/每(\d+)次/);
+            if (match) {
+                const frequency = parseInt(match[1]);
+                if (completionCount % frequency === 0) {
+                    console.log(`奖励2: ${reward.项目} ${reward.值}`);
+                    await this.applyReward(reward.项目, reward.值);
+                }
             }
         }
     }
 
     private async applyReward(type: string, value: number) {
+        console.log(`应用奖励: ${type} ${value}`);
         if (type === '经验值') {
             await this.addExperience(value);
         } else if (type.startsWith('属性/')) {
@@ -80,6 +94,7 @@ export class RewardHandler {
     }
 
     private async addExperience(value: number) {
+        console.log(`添加经验: ${value}`);
         const characterFile = this.app.vault.getAbstractFileByPath('游戏/角色.md');
         if (characterFile instanceof TFile) {
             const content = await this.app.vault.read(characterFile);
@@ -87,7 +102,7 @@ export class RewardHandler {
             
             let exp = parseInt(cache?.frontmatter?.经验值 || '0');
             let level = parseInt(cache?.frontmatter?.等级 || '1');
-            let nextLevelExp = parseInt(cache?.frontmatter?.升级需要经验 || '1000');
+            let nextLevelExp = parseInt(cache?.frontmatter?.升级所需经验值 || '1000');
             
             exp += value;
             
@@ -98,17 +113,18 @@ export class RewardHandler {
                 nextLevelExp += 1000;
             }
             
-            // 更新��色文件
+            // 更新色文件
             const newContent = content
                 .replace(/经验值: \d+/, `经验值: ${exp}`)
                 .replace(/等级: \d+/, `等级: ${level}`)
-                .replace(/升级需要经验: \d+/, `升级需要经验: ${nextLevelExp}`);
+                .replace(/升级所需经验值: \d+/, `升级所需经验值: ${nextLevelExp}`);
             
             await this.app.vault.modify(characterFile, newContent);
         }
     }
 
     private async addAttribute(attributeName: string, value: number) {
+        console.log(`添加属性: ${attributeName} ${value}`);
         const attrFile = this.app.vault.getAbstractFileByPath(`游戏/属性/${attributeName}.md`);
         if (attrFile instanceof TFile) {
             const content = await this.app.vault.read(attrFile);
@@ -123,20 +139,22 @@ export class RewardHandler {
     }
 
     private async addResource(resourceName: string, value: number) {
+        console.log(`添加资源: ${resourceName} ${value}`);
         const resourceFile = this.app.vault.getAbstractFileByPath(`游戏/资源/${resourceName}.md`);
         if (resourceFile instanceof TFile) {
             const content = await this.app.vault.read(resourceFile);
             const cache = this.app.metadataCache.getFileCache(resourceFile);
             
-            const currentValue = parseInt(cache?.frontmatter?.当前值 || '0');
+            const currentValue = parseInt(cache?.frontmatter?.数量 || '0');
             const newValue = currentValue + value;
             
-            const newContent = content.replace(/当前值: \d+/, `当前值: ${newValue}`);
+            const newContent = content.replace(/数量: \d+/, `数量: ${newValue}`);
             await this.app.vault.modify(resourceFile, newContent);
         }
     }
 
     private async addSkillExperience(skillName: string, value: number) {
+        console.log(`添加技能经验: ${skillName} ${value}`);
         const skillFile = this.app.vault.getAbstractFileByPath(`游戏/技能/${skillName}.md`);
         if (skillFile instanceof TFile) {
             const content = await this.app.vault.read(skillFile);

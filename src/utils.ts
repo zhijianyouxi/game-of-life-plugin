@@ -14,7 +14,9 @@ export class TaskTimeCalculator {
         const now = moment();
         
         if (timeStr.startsWith('每天')) {
-            const hour = parseInt(timeStr.match(/每天(\d+)时/)?.[1] || '5');
+            const hourMatch = timeStr.match(/每天(\d+)[时点]/);
+            const hour = hourMatch ? parseInt(hourMatch[1]) : 5;
+            
             let next = moment().hour(hour).minute(0).second(0);
             if (next.isSameOrBefore(now)) {
                 next = next.add(1, 'day');
@@ -28,7 +30,10 @@ export class TaskTimeCalculator {
                 '五': 5, '六': 6, '日': 0
             };
             const day = dayMap[timeStr.charAt(2)];
-            let next = moment().day(day).hour(5).minute(0).second(0);
+            const hourMatch = timeStr.match(/(\d+)[时点]/);
+            const hour = hourMatch ? parseInt(hourMatch[1]) : 5;
+            
+            let next = moment().day(day).hour(hour).minute(0).second(0);
             if (next.isSameOrBefore(now)) {
                 next = next.add(1, 'week');
             }
@@ -36,8 +41,12 @@ export class TaskTimeCalculator {
         }
         
         if (timeStr.startsWith('每月')) {
-            const date = parseInt(timeStr.match(/每月(\d+)日/)?.[1] || '1');
-            let next = moment().date(date).hour(5).minute(0).second(0);
+            const dateMatch = timeStr.match(/每月(\d+)日/);
+            const date = dateMatch ? parseInt(dateMatch[1]) : 1;
+            const hourMatch = timeStr.match(/(\d+)[时点]/);
+            const hour = hourMatch ? parseInt(hourMatch[1]) : 5;
+            
+            let next = moment().date(date).hour(hour).minute(0).second(0);
             if (next.isSameOrBefore(now)) {
                 next = next.add(1, 'month');
             }

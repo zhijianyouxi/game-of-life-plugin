@@ -1,11 +1,12 @@
 import { Plugin, addIcon } from 'obsidian';
-import { ExampleView, VIEW_TYPE_EXAMPLE } from './src/view';
+import { GameOfLifeView, VIEW_TYPE_GAME_OF_LIFE } from './src/view';
 import { GameOfLifeSettings, DEFAULT_SETTINGS, GameOfLifeSettingTab } from './src/settings';
+import { TaskRefreshManager } from './src/task-refresh-manager';
 
-// 定义图标 SVG
-const GAME_ICON = `<svg viewBox="0 0 100 100" width="100" height="100">
-    <circle cx="50" cy="50" r="45" stroke="currentColor" stroke-width="2" fill="none"/>
-    <text x="50" cy="50" text-anchor="middle" dominant-baseline="middle" font-size="60" fill="currentColor">G</text>
+// 定义图标 SVG - 游戏手柄样式
+const GAME_ICON = `<svg viewBox="0 0 512 512">
+    <path d="M377.8,100.1C332.9,86.8,318.8,112,256,112s-76.9-25.3-121.8-11.9c-44.9,13.3-67.3,60.4-88.5,148.8  c-21.2,88.5-17.3,152.4,7.7,164.3c25,11.9,53.2-15.4,80.1-49.1C155.3,337.7,166.2,336,256,336c89.7,0,99,0.7,122.5,28.1  c26.9,33.7,55.1,61,80.1,49.1c25-11.9,28.9-75.8,7.7-164.3C445.1,160.5,422.6,113.5,377.8,100.1z M128.2,263.7  c-21.7,0-39.3-17.7-39.3-39.6c0-21.8,17.6-39.6,39.3-39.6c21.7,0,39.3,17.8,39.3,39.6S149.9,263.7,128.2,263.7z M309.7,243.6  c-10.6,0-19.3-8.7-19.3-19.4c0-10.7,8.7-19.4,19.3-19.4c10.7,0,19.4,8.7,19.4,19.4C329,234.9,320.4,243.6,309.7,243.6z M351.9,286  c-10.6,0-19.3-8.7-19.3-19.4c0-10.8,8.7-19.4,19.3-19.4c10.7,0,19.4,8.7,19.4,19.4C371.3,277.4,362.6,286,351.9,286z M351.9,201.1  c-10.6,0-19.3-8.7-19.3-19.4c0-10.7,8.7-19.4,19.3-19.4c10.7,0,19.4,8.7,19.4,19.4C371.3,192.4,362.6,201.1,351.9,201.1z   M394.2,243.6c-10.7,0-19.3-8.7-19.3-19.4c0-10.7,8.7-19.4,19.3-19.4c10.6,0,19.3,8.7,19.3,19.4  C413.5,234.9,404.9,243.6,394.2,243.6z" 
+          fill="currentColor"/>
 </svg>`;
 
 interface TaskRecord {
@@ -21,7 +22,8 @@ interface GameOfLifeData {
 export default class GameOfLifePlugin extends Plugin {
     settings: GameOfLifeSettings;
     data: GameOfLifeData;
-    private view: ExampleView;
+    private view: GameOfLifeView;
+    private taskRefreshManager: TaskRefreshManager;
 
     async onload() {
         console.log("加载游戏人生插件");
@@ -30,12 +32,22 @@ export default class GameOfLifePlugin extends Plugin {
         this.data = Object.assign({ completedTasks: {} }, await this.loadData());
         await this.loadSettings();
         
+        // 添加图标
+        addIcon('game-of-life', GAME_ICON);
+        
+        // 添加侧边栏按钮
+        this.addRibbonIcon('game-of-life', '游戏人生', async () => {
+            await this.activateView();
+        });
+        
+        // 初始化任务刷新管理器
+        this.taskRefreshManager = new TaskRefreshManager(this.app);
+        
         // 注册视图
         this.registerView(
-            VIEW_TYPE_EXAMPLE,
+            VIEW_TYPE_GAME_OF_LIFE,
             (leaf) => {
-                console.log("创建视图实例");
-                this.view = new ExampleView(leaf);
+                this.view = new GameOfLifeView(leaf, this.taskRefreshManager);
                 return this.view;
             }
         );
@@ -50,31 +62,29 @@ export default class GameOfLifePlugin extends Plugin {
         // 添加设置页
         this.addSettingTab(new GameOfLifeSettingTab(this.app, this));
         
-        // 如果需要，自动打开视图
-        await this.activateView();
+        // 启动任务刷新定时器
+        this.taskRefreshManager.startRefreshTimer();
     }
 
     async activateView() {
-        console.log("激活视图");
         const { workspace } = this.app;
         
-        let leaf = workspace.getLeavesOfType(VIEW_TYPE_EXAMPLE)[0];
+        let leaf = workspace.getLeavesOfType(VIEW_TYPE_GAME_OF_LIFE)[0];
         
         if (!leaf) {
-            console.log("创建新的视图页面");
             leaf = workspace.getRightLeaf(false);
             await leaf.setViewState({
-                type: VIEW_TYPE_EXAMPLE,
+                type: VIEW_TYPE_GAME_OF_LIFE,
                 active: true,
             });
         }
         
-        console.log("显示视图");
         workspace.revealLeaf(leaf);
     }
 
     async onunload() {
         console.log("卸载游戏人生插件");
+        this.taskRefreshManager.stopRefreshTimer();
     }
 
     async loadSettings() {
@@ -93,7 +103,7 @@ export default class GameOfLifePlugin extends Plugin {
         const workspace = this.app.workspace;
         const leaf = workspace.getRightLeaf(false);
         await leaf.setViewState({
-            type: VIEW_TYPE_EXAMPLE,
+            type: VIEW_TYPE_GAME_OF_LIFE,
             active: true,
         });
         workspace.revealLeaf(leaf);

@@ -2,10 +2,13 @@ import { ItemView, WorkspaceLeaf } from 'obsidian';
 import { TFile } from 'obsidian';
 import { v4 as uuidv4 } from 'uuid';
 import { moment } from 'obsidian';
-import { RewardHandler } from './src/reward-handler';
-export const VIEW_TYPE_EXAMPLE = 'game-of-life-view';
+import { RewardHandler } from './reward-handler';
+import { TaskRefreshManager } from './task-refresh-manager';
+import { TaskData } from './types';
 
-export class ExampleView extends ItemView {
+export const VIEW_TYPE_GAME_OF_LIFE = 'game-of-life-view';
+
+export class GameOfLifeView extends ItemView {
   private characterData: any = null;
   private attributes: Map<string, any> = new Map();
   private skills: Map<string, any> = new Map();
@@ -14,15 +17,17 @@ export class ExampleView extends ItemView {
   private currentView: 'character' | 'daily' | 'weekly' | 'other' = 'character';
   private tasks: any[] = [];
   private rewardHandler: RewardHandler;
+  private taskRefreshManager: TaskRefreshManager;
 
   constructor(leaf: WorkspaceLeaf) {
     super(leaf);
     console.log("视图构造函数被调用");
     this.rewardHandler = new RewardHandler(this.app);
+    this.taskRefreshManager = new TaskRefreshManager(this.app);
   }
 
   getViewType() {
-    return VIEW_TYPE_EXAMPLE;
+    return VIEW_TYPE_GAME_OF_LIFE;
   }
 
   getDisplayText() {
@@ -500,23 +505,12 @@ export class ExampleView extends ItemView {
     await super.onload();
     console.log("加载游戏人生插件");
 
-    // 初始化插件数据
-    this.data = Object.assign({ completedTasks: {} }, await this.loadData());
-
-    // ... 其他代码
   }
 
   async onOpen() {
     console.log("视图打开");
     await this.loadAllData();
-    
-    // 启动任务刷新定时器
-    this.taskRefreshManager.startRefreshTimer();
-    
-    // 注册清理函数
-    this.register(() => {
-        this.taskRefreshManager.stopRefreshTimer();
-    });
+    this.registerEventHandlers();
   }
 
   async onClose() {
@@ -792,65 +786,20 @@ export class ExampleView extends ItemView {
             '本次任务完成情况: 已完成'
           );
 
-          // 计算下一次刷新时间
-          const nextRefreshTime = await this.calculateNextRefreshTime(cache.frontmatter);
+          // 使用 TaskRefreshManager 计算下一次刷新时间
+          const nextRefreshTime = await this.taskRefreshManager.calculateNextRefreshTime(
+            cache.frontmatter as TaskData,
+            moment()
+          );
+          
           if (nextRefreshTime) {
-            newContent = this.updateNextRefreshTime(newContent, nextRefreshTime);
+            newContent = this.taskRefreshManager.updateNextRefreshTime(newContent, nextRefreshTime);
           }
 
           await this.app.vault.modify(file, newContent);
           break;
         }
       }
-    }
-  }
-
-  private async calculateNextRefreshTime(taskData: TaskData): Promise<string | null> {
-    const now = moment();
-
-    switch (taskData.刷新方式) {
-      case RefreshType.Manual:
-        // 弹出对话框让用户输入下一次刷新时间
-        return await this.promptForNextRefreshTime();
-        
-      case RefreshType.Interval:
-        if (taskData.刷新间隔起算时间 === RefreshTimeBase.LastCompletion) {
-          // 从当前完成时间开始计算
-          return TaskTimeCalculator.addInterval(now, taskData.刷新间隔).format('YYYY-MM-DD HH:mm:ss');
-        } else {
-          // 从上次刷新时间开始计算
-          const lastRefresh = moment(taskData.本次刷新时间);
-          return TaskTimeCalculator.addInterval(lastRefresh, taskData.刷新间隔).format('YYYY-MM-DD HH:mm:ss');
-        }
-        
-      case RefreshType.Scheduled:
-        return TaskTimeCalculator.parseScheduledTime(taskData.刷新时间).format('YYYY-MM-DD HH:mm:ss');
-    }
-  }
-
-  private async promptForNextRefreshTime(): Promise<string> {
-    // 这里需要实现一个日期时间选择对话框
-    // 可以使用 obsidian 的 Modal API 或其他 UI 组件
-    return new Promise((resolve) => {
-      // 实现对话框逻辑
-      // 暂时返回24小时后
-      resolve(moment().add(24, 'hours').format('YYYY-MM-DD HH:mm:ss'));
-    });
-  }
-
-  private updateNextRefreshTime(content: string, nextTime: string): string {
-    const hasNextTime = content.includes('下一次刷新时间:');
-    if (hasNextTime) {
-      return content.replace(
-        /下一次刷新时间:.*(\r?\n|$)/,
-        `下一次刷新时间: ${nextTime}\n`
-      );
-    } else {
-      // 在 frontmatter 中添加新字段
-      return content.replace(
-        /---\n/,
-        `---\n下一次刷新时间: ${nextTime}\n`
-      );
     }
   }
 
